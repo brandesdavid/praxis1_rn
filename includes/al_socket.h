@@ -34,4 +34,26 @@ extern enum AL_SOCKET_FAULT allow_socket_reuse(int sockfd);
 extern enum AL_SOCKET_FAULT listen_socket(int sockfd,
                                           int amount_of_connections);
 
+#define MAX_HEADERS 100
+#define MAX_HEADER_LENGTH 1024
+#define MAX_BODY_LENGTH 8192
+
+enum HTTP_STATUS_CODE {
+    HTTP_OK = 200,
+    HTTP_BAD_REQUEST = 400,
+    HTTP_NOT_FOUND = 404,
+    HTTP_INTERNAL_ERROR = 500
+};
+
+struct http_response {
+    enum HTTP_STATUS_CODE status_code;
+    char content_type[128];
+    char body[MAX_BODY_LENGTH];
+    size_t body_length;
+};
+
+extern enum AL_SOCKET_FAULT handle_client_connection(int client_fd);
+extern enum AL_SOCKET_FAULT send_http_response(int client_fd, struct http_response *response);
+extern const char* get_status_text(enum HTTP_STATUS_CODE code);
+
 #endif // AL_SOCKET_H

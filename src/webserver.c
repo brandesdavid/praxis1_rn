@@ -1,6 +1,5 @@
 #include <netdb.h>
 #include <stdio.h>
-#include <stdlib.h>
 #include <string.h>
 #include <sys/socket.h>
 #include <sys/types.h>
@@ -8,17 +7,7 @@
 #include "../includes/al_socket.h"
 
 #define BACKLOG 10      // how many pending connections queue will hold
-#define BUFFER_SIZE 100 // buffer size for received data
-int status;             // status for when we call some socket functions
-int sockfd;             // socket file descriptor
-struct addrinfo hints;  // provide hints what the caller wants
-struct addrinfo *servinfo;
-
-struct sockaddr_storage their_addr; // connector's address information
-socklen_t address_size;
-int new_fd; // new file descriptor for the accepted socket
-
-char received_buffer[15];
+#define BUFFER_SIZE 8192 // buffer size for received data
 
 int main(int argc, char *argv[]) {
     if (argc < 3) {
@@ -27,6 +16,17 @@ int main(int argc, char *argv[]) {
         printf("ip address: %s, port: %s\n", argv[1], argv[2]);
     }
 
+    int status;            // status for when we call some socket functions
+    int sockfd;            // socket file descriptor
+    struct addrinfo hints; // provide hints what the caller wants
+    struct addrinfo *servinfo;
+
+    struct sockaddr_storage their_addr; // connector's address information
+    socklen_t address_size;
+    int new_fd; // new file descriptor for the accepted socket
+
+    char received_buffer[15];
+
     // --- taken from beej's guide
     memset(&hints, 0, sizeof hints);
     hints.ai_family = AF_UNSPEC;     // can be both ipv4 and ipv6
@@ -34,42 +34,32 @@ int main(int argc, char *argv[]) {
     hints.ai_flags = AI_PASSIVE;     // fill in my IP for me
     // ---
 
-    // parse the ip address and port from the args
     parse_ip_address(argv[1], argv[2], hints, &servinfo);
 
-    // create a socket
     create_socket(&sockfd, servinfo);
-
-    // bind the socket
 
     bind_socket(sockfd, servinfo);
 
-    // --- taken from beej's guide -- to avoid "address already in use" error
-
     allow_socket_reuse(sockfd);
-    // ---
 
-    // listen
     listen_socket(sockfd, BACKLOG);
 
-    // accept incoming connections
-
-    while (1) {
+    // Main server loop
+    while(1) {
         address_size = sizeof their_addr;
         new_fd = accept(sockfd, (struct sockaddr *)&their_addr, &address_size);
-
-        if ((status = recv(new_fd, received_buffer, 5, 0)) == -1) {
-            perror("recv failed");
-            exit(1);
+        if (new_fd == -1) {
+            perror("accept failed");
+            continue;
         }
 
-        if (status == 0)
-            printf("client closed the connection\n");
+        enum AL_SOCKET_FAULT result = handle_client_connection(new_fd);
+        if (result != AL_SOCKET_FAULT_NONE) {
+            fprintf(stderr, "Error handling client connection: %d\n", result);
+        }
 
-        send(new_fd, "Hello, world!", 13, 0);
-
-        printf("received: %s\n", received_buffer);
-    };
+        shutdown(new_fd, SHUT_RDWR);
+    }
 
     // free
     freeaddrinfo(servinfo);

@@ -53,3 +53,67 @@ extern enum AL_SOCKET_FAULT listen_socket(int sockfd,
     }
     return AL_SOCKET_FAULT_NONE;
 }
+
+extern const char* get_status_text(enum HTTP_STATUS_CODE code) {
+    switch (code) {
+        case HTTP_OK:
+            return "200 OK";
+        case HTTP_BAD_REQUEST:
+            return "400 Bad Request";
+        case HTTP_NOT_FOUND:
+            return "404 Not Found";
+        case HTTP_INTERNAL_ERROR:
+            return "500 Internal Server Error";
+        default:
+            return "500 Internal Server Error";
+    }
+}
+
+extern enum AL_SOCKET_FAULT send_http_response(int client_fd, struct http_response *response) {
+    char response_buffer[MAX_BODY_LENGTH + 1024];  // Extra space for headers
+    int written = snprintf(response_buffer, sizeof(response_buffer),
+        "HTTP/1.1 %s\r\n"
+        "Content-Type: %s\r\n"
+        "Content-Length: %zu\r\n"
+        "\r\n"
+        "%s",
+        get_status_text(response->status_code),
+        response->content_type,
+        response->body_length,
+        response->body
+    );
+
+    if (send(client_fd, response_buffer, written, 0) == -1) {
+        return AL_SOCKET_SEND_ERROR;
+    }
+    
+    return AL_SOCKET_FAULT_NONE;
+}
+
+extern enum AL_SOCKET_FAULT handle_client_connection(int client_fd) {
+    char received_buffer[MAX_BODY_LENGTH];
+    ssize_t bytes_received;
+
+    while ((bytes_received = recv(client_fd, received_buffer, 
+           sizeof(received_buffer) - 1, 0)) > 0) {
+        
+        received_buffer[bytes_received] = '\0';
+
+        struct http_response response = {
+            .status_code = HTTP_OK,
+            .body_length = 0
+        };
+        
+        // how to set different responses based on conditions
+        if (strstr(received_buffer, "GET /") != NULL) {
+            strcpy(response.content_type, "text/html");
+            strcpy(response.body, "Hello, World!");
+            response.body_length = strlen(response.body);
+        }
+        
+        // send back to se client
+        send_http_response(client_fd, &response);
+    }
+
+    return AL_SOCKET_FAULT_NONE;
+}
