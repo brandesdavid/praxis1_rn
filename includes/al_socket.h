@@ -42,7 +42,8 @@ enum HTTP_STATUS_CODE {
     HTTP_OK = 200,
     HTTP_BAD_REQUEST = 400,
     HTTP_NOT_FOUND = 404,
-    HTTP_INTERNAL_ERROR = 500
+    HTTP_INTERNAL_ERROR = 500,
+    HTTP_NOT_IMPLEMENTED = 501,
 };
 
 struct http_response {
@@ -53,7 +54,8 @@ struct http_response {
 };
 
 extern enum AL_SOCKET_FAULT handle_client_connection(int client_fd);
-extern enum AL_SOCKET_FAULT send_http_response(int client_fd, struct http_response *response);
-extern const char* get_status_text(enum HTTP_STATUS_CODE code);
+extern enum AL_SOCKET_FAULT send_http_response(int client_fd,
+                                               struct http_response *response);
+extern const char *get_status_text(enum HTTP_STATUS_CODE code);
 
 #endif // AL_SOCKET_H

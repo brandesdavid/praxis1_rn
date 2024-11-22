@@ -3,49 +3,65 @@
 #include <string.h>
 #include <sys/socket.h>
 #include <sys/types.h>
+#include <unistd.h>
 
 #include "../includes/al_socket.h"
 
-#define BACKLOG 10      // how many pending connections queue will hold
+#define BACKLOG 10       // how many pending connections queue will hold
 #define BUFFER_SIZE 8192 // buffer size for received data
 
 int main(int argc, char *argv[]) {
     if (argc < 3) {
         printf("Usage: %s <ip address> <port> \n", argv[0]);
-    } else {
-        printf("ip address: %s, port: %s\n", argv[1], argv[2]);
+        return 1;
     }
 
-    int status;            // status for when we call some socket functions
     int sockfd;            // socket file descriptor
     struct addrinfo hints; // provide hints what the caller wants
     struct addrinfo *servinfo;
-
-    struct sockaddr_storage their_addr; // connector's address information
+    struct sockaddr_storage their_addr;
     socklen_t address_size;
-    int new_fd; // new file descriptor for the accepted socket
+    int new_fd;
 
-    char received_buffer[15];
-
-    // --- taken from beej's guide
+    // Initialize hints
     memset(&hints, 0, sizeof hints);
-    hints.ai_family = AF_UNSPEC;     // can be both ipv4 and ipv6
-    hints.ai_socktype = SOCK_STREAM; // means we use tcp
-    hints.ai_flags = AI_PASSIVE;     // fill in my IP for me
-    // ---
+    hints.ai_family = AF_INET;       // IPv4
+    hints.ai_socktype = SOCK_STREAM; // TCP
+    hints.ai_flags = AI_PASSIVE;     // Fill in IP
 
-    parse_ip_address(argv[1], argv[2], hints, &servinfo);
+    // Set up socket before binding
+    if (parse_ip_address(argv[1], argv[2], hints, &servinfo) != AL_SOCKET_FAULT_NONE) {
+        return 1;
+    }
 
-    create_socket(&sockfd, servinfo);
+    // Allow socket reuse before creating the socket
+    if (create_socket(&sockfd, servinfo) != AL_SOCKET_FAULT_NONE) {
+        freeaddrinfo(servinfo);
+        return 1;
+    }
 
-    bind_socket(sockfd, servinfo);
+    if (allow_socket_reuse(sockfd) != AL_SOCKET_FAULT_NONE) {
+        close(sockfd);
+        freeaddrinfo(servinfo);
+        return 1;
+    }
 
-    allow_socket_reuse(sockfd);
+    if (bind_socket(sockfd, servinfo) != AL_SOCKET_FAULT_NONE) {
+        close(sockfd);
+        freeaddrinfo(servinfo);
+        return 1;
+    }
 
-    listen_socket(sockfd, BACKLOG);
+    if (listen_socket(sockfd, BACKLOG) != AL_SOCKET_FAULT_NONE) {
+        close(sockfd);
+        freeaddrinfo(servinfo);
+        return 1;
+    }
+
+    freeaddrinfo(servinfo); // Free this early as we don't need it anymore
 
     // Main server loop
-    while(1) {
+    while (1) {
         address_size = sizeof their_addr;
         new_fd = accept(sockfd, (struct sockaddr *)&their_addr, &address_size);
         if (new_fd == -1) {
@@ -58,9 +74,9 @@ int main(int argc, char *argv[]) {
             fprintf(stderr, "Error handling client connection: %d\n", result);
         }
 
-        shutdown(new_fd, SHUT_RDWR);
+        close(new_fd);
     }
 
-    // free
-    freeaddrinfo(servinfo);
+    close(sockfd);
+    return 0;
 }
