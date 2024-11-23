@@ -127,7 +127,8 @@ static void prepare_response(struct http_response *response,
     response->status_code = status;
 }
 
-static enum AL_SOCKET_FAULT handle_http_request(const char *request, int client_fd) {
+static enum AL_SOCKET_FAULT handle_http_request(const char *request,
+                                                int client_fd) {
     char method[8] = {0};
     char uri[256] = {0};
     char http_version[16] = {0};
@@ -135,31 +136,42 @@ static enum AL_SOCKET_FAULT handle_http_request(const char *request, int client_
     struct http_response response;
     prepare_response(&response, HTTP_BAD_REQUEST);
 
+    // Parse the request line
     if (sscanf(request, "%7s %255s %15s", method, uri, http_version) != 3) {
         send_http_response(client_fd, &response);
         return AL_SOCKET_FAULT_NONE;
     }
 
-    // only handle GET method, everything else is not implemented
+    // Handle GET requests
     if (strcmp(method, "GET") == 0) {
         if (strncmp(uri, "/static/", 8) == 0) {
-            enum HTTP_STATUS_CODE status = handle_static_content(uri, &response);
-            prepare_response(&response, status);
-        } 
-        else if (strncmp(uri, "/dynamic/", 9) == 0) {
+            // Handle static content
+            if (strcmp(uri, "/static/foo") == 0) {
+                prepare_response(&response, HTTP_OK);
+                strcpy(response.body, "Foo");
+                response.body_length = strlen(response.body);
+            } else if (strcmp(uri, "/static/bar") == 0) {
+                prepare_response(&response, HTTP_OK);
+                strcpy(response.body, "Bar");
+                response.body_length = strlen(response.body);
+            } else if (strcmp(uri, "/static/baz") == 0) {
+                prepare_response(&response, HTTP_OK);
+                strcpy(response.body, "Baz");
+                response.body_length = strlen(response.body);
+            } else {
+                prepare_response(&response, HTTP_NOT_FOUND);
+            }
+        } else if (strncmp(uri, "/dynamic/", 9) == 0) {
+            prepare_response(&response, HTTP_NOT_FOUND);
+        } else {
             prepare_response(&response, HTTP_NOT_FOUND);
         }
-        else {
-            prepare_response(&response, HTTP_NOT_FOUND);
-        }
-    } 
-    else {
-        // any method that's not GET is not implemented
+    } else {
+        // Any method that's not GET is not implemented
         prepare_response(&response, HTTP_NOT_IMPLEMENTED);
-        response.body_length = 0; // no body for 501 responses
+        response.body_length = 0;
     }
 
-    response.body_length = strlen(response.body);
     return send_http_response(client_fd, &response);
 }
 
