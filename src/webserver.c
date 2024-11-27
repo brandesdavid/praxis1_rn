@@ -7,8 +7,8 @@
 
 #include "../includes/al_socket.h"
 
-#define BACKLOG 10       // how many pending connections queue will hold
-#define BUFFER_SIZE 8192 // buffer size for received data
+#define BACKLOG 10
+#define BUFFER_SIZE 8192
 
 int main(int argc, char *argv[]) {
     if (argc < 3) {
@@ -16,8 +16,8 @@ int main(int argc, char *argv[]) {
         return 1;
     }
 
-    int sockfd;            // socket file descriptor
-    struct addrinfo hints; // provide hints what the caller wants
+    int sockfd;
+    struct addrinfo hints;
     struct addrinfo *servinfo;
     struct sockaddr_storage their_addr;
     socklen_t address_size;
@@ -25,16 +25,14 @@ int main(int argc, char *argv[]) {
 
     // Initialize hints
     memset(&hints, 0, sizeof hints);
-    hints.ai_family = AF_INET;       // IPv4
-    hints.ai_socktype = SOCK_STREAM; // TCP
-    hints.ai_flags = AI_PASSIVE;     // Fill in IP
+    hints.ai_family = AF_INET;
+    hints.ai_socktype = SOCK_STREAM;
+    hints.ai_flags = AI_PASSIVE;
 
-    // Set up socket before binding
     if (parse_ip_address(argv[1], argv[2], hints, &servinfo) != AL_SOCKET_FAULT_NONE) {
         return 1;
     }
 
-    // Allow socket reuse before creating the socket
     if (create_socket(&sockfd, servinfo) != AL_SOCKET_FAULT_NONE) {
         freeaddrinfo(servinfo);
         return 1;
@@ -58,16 +56,18 @@ int main(int argc, char *argv[]) {
         return 1;
     }
 
-    freeaddrinfo(servinfo); // Free this early as we don't need it anymore
+    freeaddrinfo(servinfo);
 
-    // Main server loop
     while (1) {
+        // create a new socket for client, and accept the connection
         address_size = sizeof their_addr;
         new_fd = accept(sockfd, (struct sockaddr *)&their_addr, &address_size);
         if (new_fd == -1) {
             perror("accept failed");
             continue;
         }
+
+        // handle the client connection with abstraction layer of socket
 
         enum AL_SOCKET_FAULT result = handle_client_connection(new_fd);
         if (result != AL_SOCKET_FAULT_NONE) {

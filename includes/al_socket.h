@@ -20,20 +20,6 @@ enum AL_SOCKET_FAULT {
     AL_SOCKET_SETSOCKOPT_ERROR
 };
 
-extern enum AL_SOCKET_FAULT parse_ip_address(char *ip_address, char *port,
-                                             struct addrinfo hints,
-                                             struct addrinfo **servinfo);
-
-extern enum AL_SOCKET_FAULT create_socket(int *sockfd,
-                                          struct addrinfo *servinfo);
-
-extern enum AL_SOCKET_FAULT bind_socket(int sockfd, struct addrinfo *servinfo);
-
-extern enum AL_SOCKET_FAULT allow_socket_reuse(int sockfd);
-
-extern enum AL_SOCKET_FAULT listen_socket(int sockfd,
-                                          int amount_of_connections);
-
 #define MAX_HEADERS 100
 #define MAX_HEADER_LENGTH 1024
 #define MAX_BODY_LENGTH 8192
@@ -56,9 +42,14 @@ struct http_response {
     size_t body_length;
 };
 
-extern enum AL_SOCKET_FAULT handle_client_connection(int client_fd);
-extern enum AL_SOCKET_FAULT send_http_response(int client_fd,
-                                               struct http_response *response);
-extern const char *get_status_text(enum HTTP_STATUS_CODE code);
+enum AL_SOCKET_FAULT parse_ip_address(char *ip_address, char *port,
+                                    struct addrinfo hints,
+                                    struct addrinfo **servinfo);
+enum AL_SOCKET_FAULT create_socket(int *sockfd, struct addrinfo *servinfo);
+enum AL_SOCKET_FAULT bind_socket(int sockfd, struct addrinfo *servinfo);
+enum AL_SOCKET_FAULT allow_socket_reuse(int sockfd);
+enum AL_SOCKET_FAULT listen_socket(int sockfd, int amount_of_connections);
+enum AL_SOCKET_FAULT handle_client_connection(int client_fd);
+
 
 #endif // AL_SOCKET_H
